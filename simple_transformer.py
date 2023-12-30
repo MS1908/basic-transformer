@@ -30,3 +30,12 @@ class SimpleTransformer(nn.Module):
         self.embedding = nn.Embedding(n_token, d_model)
         self.d_model = d_model
         self.fc = nn.Linear(d_model, n_token)
+
+    def forward(self, src, src_mask=None):
+        src = self.embedding(src) * math.sqrt(self.d_model)
+        src = self.pos_encoder(src)
+        if src_mask is None:
+            src_mask = nn.Transformer.generate_square_subsequent_mask(len(src))
+        output = self.transformer_encoder(src, src_mask)
+        output = self.fc(output)
+        return output
