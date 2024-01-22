@@ -4,38 +4,43 @@ from torch import nn
 
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout, max_len=5000):
+    def __init__(self, d_model, vocab_size=5000, dropout=0.1):
         super(PositionalEncoding, self).__init__()
-
         self.dropout = nn.Dropout(p=dropout)
-        position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe)
+
+        pe = torch.zeros(vocab_size, d_model)
+        position = torch.arange(0, vocab_size, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+        self.register_buffer("pe", pe)
 
     def forward(self, x):
-        x = x + self.pe[:x.size(0)]
+        x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)
 
 
 class SimpleTransformer(nn.Module):
-    def __init__(self, n_token, d_model, n_head, d_hid, n_layers, dropout=0.5):
+    def __init__(self, n_classes, vocab_size, d_model, n_head, d_hid, n_layers, dropout=0.5):
         super(SimpleTransformer, self).__init__()
 
-        self.pos_encoder = PositionalEncoding(d_model, dropout)
-        encoder_layers = nn.TransformerEncoderLayer(d_model, n_head, d_hid, dropout)
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, n_layers)
-        self.embedding = nn.Embedding(n_token, d_model)
-        self.d_model = d_model
-        self.fc = nn.Linear(d_model, n_token)
+        self.embedding = nn.Embedding(vocab_size, d_model)
+        self.pos_encoder = PositionalEncoding(
+            d_model=d_model,
+            dropout=dropout,
+            vocab_size=vocab_size,
+        )
+        
+        enc_layers = nn.TransformerEncoderLayer(d_model, n_head, d_hid, dropout)
+        self.encoder = nn.TransformerEncoder(enc_layers, n_layers)
+        self.fc = nn.Linear(d_model, n_classes)
 
-    def forward(self, src, src_mask=None):
-        src = self.embedding(src) * math.sqrt(self.d_model)
-        src = self.pos_encoder(src)
-        if src_mask is None:
-            src_mask = nn.Transformer.generate_square_subsequent_mask(len(src))
-        output = self.transformer_encoder(src, src_mask)
-        output = self.fc(output)
+        self.d_model = d_model
+
+    def forward(self, inputs):
+        x = self.embedding(inputs) * math.sqrt(self.d_model)
+        x = self.pos_encoder(x)
+        x = self.encoder(x)
+        output = self.fc(x.mean(dim=1))
         return output
