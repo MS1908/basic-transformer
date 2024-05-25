@@ -1,30 +1,8 @@
-import re
 import os
 import numpy as np
 from sklearn import model_selection
-from nltk import wordpunct_tokenize
 from torch.utils import data
-
-
-def tokenize(text):
-    text = re.sub(r'[^\w\s]', '', text)
-    text = text.lower()
-    tokens = wordpunct_tokenize(text)
-    tokens = tokens[:-1] # remove last token because it is the year which maybe is not useful
-    return tokens
-
-
-def create_vocab(texts):
-    vocab = set()
-    for sentence in texts:
-        tokens = tokenize(sentence)
-        vocab.update(tokens)
-    vocab = list(vocab)
-    pad_token = '<PAD>'
-    unk_token = '<UNK>'
-    vocab.append(pad_token)
-    vocab.append(unk_token)
-    return vocab
+from transformers import AutoTokenizer
 
 
 class UCISentimentDataset(data.Dataset):
@@ -43,11 +21,7 @@ class UCISentimentDataset(data.Dataset):
                     labels.append(int(label))
                     sentences.append(sentence)
 
-        vocab = create_vocab(sentences)
-        self.vocab_size = len(vocab)
-        pad_token = '<PAD>'
-        unk_token = '<UNK>'
-        self.token2idx = {token: idx for idx, token in enumerate(vocab)}
+        tokenizer = AutoTokenizer.from_pretrained('distilbert-base-uncased')
 
         train_samples, val_samples, train_labels, val_labels = model_selection.train_test_split(
             sentences,
@@ -64,23 +38,14 @@ class UCISentimentDataset(data.Dataset):
             self.labels = val_labels
 
         vectors = []
-        for tokens in self.samples:
-            tokens = tokenize(tokens)
-            if len(tokens) < max_length:
-                num_pad = max_length - len(tokens)
-                tokens.extend([pad_token] * num_pad)
-            else:
-                tokens = tokens[:max_length]
-            token_vector = []
+        for sample in self.samples:
+            token_vector = tokenizer(sample,
+                                     padding='max_length',
+                                     max_length=max_length,
+                                     truncation=True)
+            vectors.append(np.array(token_vector['input_ids']))
 
-            for word in tokens:
-                if word in vocab:
-                    token_vector.append(self.token2idx[word])
-                else:
-                    token_vector.append(self.token2idx[unk_token])
-
-            vectors.append(np.array(token_vector))
-
+        self.vocab_size = tokenizer.vocab_size
         self.samples = vectors
 
     def __len__(self):
