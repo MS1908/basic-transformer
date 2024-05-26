@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from simple_transformer import TransformerForClassification
 from dataset.uci_sentiment_dataset import uci_sentiment_dataloader
+from utils import model_summary
 
 
 if __name__ == '__main__':
@@ -25,25 +26,26 @@ if __name__ == '__main__':
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    train_loader, vocab_size = uci_sentiment_dataloader(args.data_root, mode='train', max_seq_length=512)
-    val_loader, _ = uci_sentiment_dataloader(args.data_root, mode='val', max_seq_length=512)
+    train_loader, vocab_size = uci_sentiment_dataloader(args.data_root, mode='train', max_seq_length=256)
+    val_loader, _ = uci_sentiment_dataloader(args.data_root, mode='val', max_seq_length=256)
 
-    model = TransformerForClassification(embed_dim=128,
-                                         src_vocab_size=vocab_size,
+    model = TransformerForClassification(embed_dim=64,
+                                         vocab_size=vocab_size,
                                          num_classes=2,
-                                         seq_len=512,
+                                         seq_len=256,
                                          num_blocks=4)
+    model_summary(model)
     
     date_str = datetime.now().strftime('%Y%m%d-%H%M')
-    save_dir = os.path.join(args.wt_path, 'simple_transformer', date_str)
+    save_dir = os.path.join(args.wt_path, 'classification', date_str)
     os.makedirs(save_dir, exist_ok=True)
     
-    log_dir = os.path.join(args.plot_path, 'simple_transformer', date_str)
+    log_dir = os.path.join(args.plot_path, 'classification', date_str)
     os.makedirs(log_dir, exist_ok=True)
     logger = SummaryWriter(log_dir)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=1e-5)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     model.to(device)
     model.train()

@@ -9,8 +9,7 @@ from .decoder import Decoder
 class TransformerForGeneration(nn.Module):
     def __init__(self,
                  embed_dim,
-                 src_vocab_size,
-                 tgt_vocab_size,
+                 vocab_size,
                  seq_len,
                  num_blocks=6,
                  expansion_factor=4,
@@ -18,10 +17,8 @@ class TransformerForGeneration(nn.Module):
                  dropout=0.2):
         super(TransformerForGeneration, self).__init__()
 
-        self.tgt_vocab_size = tgt_vocab_size
-
         self.encoder = Encoder(seq_len=seq_len,
-                               vocab_size=src_vocab_size,
+                               vocab_size=vocab_size,
                                embed_dim=embed_dim,
                                num_blocks=num_blocks,
                                expansion_factor=expansion_factor,
@@ -29,14 +26,14 @@ class TransformerForGeneration(nn.Module):
                                dropout=dropout)
 
         self.decoder = Decoder(seq_len=seq_len,
-                               target_vocab_size=tgt_vocab_size,
+                               target_vocab_size=vocab_size,
                                embed_dim=embed_dim,
                                num_blocks=num_blocks,
                                expansion_factor=expansion_factor,
                                heads=heads,
                                dropout=dropout)
 
-        self.fc_out = nn.Linear(embed_dim, tgt_vocab_size)
+        self.fc_out = nn.Linear(embed_dim, vocab_size)
 
     @staticmethod
     def make_tgt_mask(tgt):
@@ -55,7 +52,7 @@ class TransformerForGeneration(nn.Module):
 class TransformerForClassification(nn.Module):
     def __init__(self,
                  embed_dim,
-                 src_vocab_size,
+                 vocab_size,
                  num_classes,
                  seq_len,
                  num_blocks=6,
@@ -65,7 +62,7 @@ class TransformerForClassification(nn.Module):
         super(TransformerForClassification, self).__init__()
 
         self.encoder = Encoder(seq_len=seq_len,
-                               vocab_size=src_vocab_size,
+                               vocab_size=vocab_size,
                                embed_dim=embed_dim,
                                num_blocks=num_blocks,
                                expansion_factor=expansion_factor,
